@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field, validator
-from typing import Optional, List
+from typing import Optional, List, Any, Dict
 from datetime import date, datetime
 from enum import Enum
 
@@ -7,7 +7,6 @@ from enum import Enum
 class GenderEnum(str, Enum):
     male = "male"
     female = "female"
-    #helicopter = "any"
 
 # Базовые схемы
 class StudentBase(BaseModel):
@@ -73,6 +72,17 @@ class StudentResponse(StudentBase):
 class StudentWithGrades(StudentResponse):
     grades: List[GradeResponse] = []
 
+# Пагинация
+class PaginatedResponse(BaseModel):
+    items: List[StudentResponse]
+    total: int
+    page: int
+    size: int
+    pages: int
+    
+    class Config:
+        from_attributes = True
+
 # Агрегации и статистика
 class StudentStats(BaseModel):
     student_id: int
@@ -88,13 +98,46 @@ class FacultyStats(BaseModel):
     faculty: str
     total_students: int
     average_grade: float
-    best_student: str
-    worst_student: str
+    best_student: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
 
-# Пагинация
-class PaginatedResponse(BaseModel):
-    items: List
-    total: int
-    page: int
-    size: int
-    pages: int
+# Для топа студентов
+class TopStudent(BaseModel):
+    id: int
+    full_name: str
+    group: str
+    average_grade: float
+    total_grades: int
+    
+    class Config:
+        from_attributes = True
+
+class TopStudentsResponse(BaseModel):
+    faculty: str
+    top_students: List[TopStudent]
+    
+    class Config:
+        from_attributes = True
+
+# Для успеваемости по предметам
+class SubjectPerformance(BaseModel):
+    subject: str
+    average_grade: float
+    total_grades: int
+    excellent: int
+    good: int
+    satisfactory: int
+    unsatisfactory: int
+    success_rate: float
+    
+    class Config:
+        from_attributes = True
+
+class SubjectsPerformanceResponse(BaseModel):
+    semester: Optional[int] = None
+    subjects_performance: List[SubjectPerformance]
+    
+    class Config:
+        from_attributes = True

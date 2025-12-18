@@ -25,7 +25,7 @@ def get_students(
     query = db.query(models.Student)
     
     if faculty:
-        query = query.filter(models.Student.faculty.ilike(f"%{facility}%"))
+        query = query.filter(models.Student.faculty.ilike(f"%{faculty}%"))
     if group:
         query = query.filter(models.Student.group == group)
     if enrollment_year:
@@ -139,15 +139,41 @@ def get_faculty_stats(db: Session, faculty: str):
     
     # Статистика по оценкам
     grades_stats = db.query(
-        func.avg(models.Grade.grade).label('average')
+        func.avg(models.Grade.grade).label('average'),
+        func.count(models.Grade.id).label('total_grades')
     ).filter(
         models.Grade.student_id.in_(student_ids)
     ).first()
     
+    # Находим лучшего студента по среднему баллу
+    from sqlalchemy import desc
+    
+    # Подзапрос для средних баллов студентов
+    subquery = db.query(
+        models.Grade.student_id,
+        func.avg(models.Grade.grade).label('avg_grade')
+    ).group_by(
+        models.Grade.student_id
+    ).subquery()
+    
+    best_student_query = db.query(
+        models.Student
+    ).join(
+        subquery, models.Student.id == subquery.c.student_id
+    ).filter(
+        models.Student.faculty == faculty
+    ).order_by(
+        desc(subquery.c.avg_grade)
+    ).first()
+    
+    best_student = f"{best_student_query.first_name} {best_student_query.last_name}" if best_student_query else None
+    
     return {
         "faculty": faculty,
         "total_students": len(students),
-        "average_grade": round(grades_stats.average, 2) if grades_stats.average else 0
+        "average_grade": round(grades_stats.average, 2) if grades_stats.average else 0,
+        "total_grades": grades_stats.total_grades or 0,
+        "best_student": best_student
     }
 
 # Поиск

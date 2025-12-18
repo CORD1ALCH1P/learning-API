@@ -6,7 +6,7 @@ from app.database import get_db
 
 router = APIRouter()
 
-# эндпоинт 1 получить список студентов с пагинацией и фильтрацией
+# ✅ Эндпоинт 1: Получить список студентов с пагинацией и фильтрацией
 @router.get("/", response_model=schemas.PaginatedResponse)
 def read_students(
     db: Session = Depends(get_db),
@@ -19,31 +19,54 @@ def read_students(
     sort_order: Optional[str] = Query("asc", description="Порядок сортировки (asc/desc)")
 ):
     """
-    получить список студентов с возможностью фильтрации сортировки + пагинации
+    Получить список студентов с возможностью фильтрации, сортировки и пагинации.
     """
-    # получаем студентов
+    # Получаем студентов
     students = crud.get_students(
         db, skip=skip, limit=limit,
         faculty=faculty, group=group, enrollment_year=enrollment_year
     )
     
-    # Сортировка
-    if sort_by in ["last_name", "first_name", "enrollment_year", "created_at"]:
-        students.sort(
-            key=lambda x: getattr(x, sort_by),
-            reverse=(sort_order.lower() == "desc")
-        )
-    
-    # добавляем средний балл каждому студенту
+    # Преобразуем студентов в Pydantic модели
+    student_responses = []
     for student in students:
         avg_grade = crud.calculate_student_average(db, student.id)
-        student.average_grade = avg_grade
-        student.total_grades = len(student.grades)
+        
+        # Создаем StudentResponse
+        student_response = schemas.StudentResponse(
+            id=student.id,
+            student_id=student.student_id,
+            first_name=student.first_name,
+            last_name=student.last_name,
+            email=student.email,
+            phone=student.phone,
+            date_of_birth=student.date_of_birth,
+            gender=student.gender,
+            faculty=student.faculty,
+            group=student.group,
+            enrollment_year=student.enrollment_year,
+            created_at=student.created_at,
+            average_grade=avg_grade,
+            total_grades=len(student.grades)
+        )
+        student_responses.append(student_response)
     
-    # общее количество студентов (для пагинации)
+    # Сортировка
+    if sort_by in ["last_name", "first_name", "enrollment_year", "created_at"]:
+        reverse = sort_order.lower() == "desc"
+        if sort_by == "last_name":
+            student_responses.sort(key=lambda x: x.last_name, reverse=reverse)
+        elif sort_by == "first_name":
+            student_responses.sort(key=lambda x: x.first_name, reverse=reverse)
+        elif sort_by == "enrollment_year":
+            student_responses.sort(key=lambda x: x.enrollment_year, reverse=reverse)
+        elif sort_by == "created_at":
+            student_responses.sort(key=lambda x: x.created_at, reverse=reverse)
+    
+    # Общее количество студентов (для пагинации)
     total_query = db.query(models.Student)
     if faculty:
-        total_query = total_query.filter(models.Student.faculty.ilike(f"%{faculty}%"))
+        total_query = total_query.filter(models.Student.faculty == faculty)
     if group:
         total_query = total_query.filter(models.Student.group == group)
     if enrollment_year:
@@ -52,23 +75,23 @@ def read_students(
     total = total_query.count()
     
     return {
-        "items": students,
+        "items": student_responses,
         "total": total,
-        "page": skip // limit + 1,
+        "page": skip // limit + 1 if limit > 0 else 1,
         "size": limit,
-        "pages": (total + limit - 1) // limit
+        "pages": (total + limit - 1) // limit if limit > 0 else 1
     }
 
-# эндпоинт 2: создать нового студента
+# ✅ Эндпоинт 2: Создать нового студента
 @router.post("/", response_model=schemas.StudentResponse, status_code=status.HTTP_201_CREATED)
 def create_student(
     student: schemas.StudentCreate,
     db: Session = Depends(get_db)
 ):
     """
-    создать нового студента
+    Создать нового студента.
     """
-    # проверка уникальности email
+    # Проверка уникальности email
     db_student = crud.get_student_by_email(db, email=student.email)
     if db_student:
         raise HTTPException(
@@ -76,7 +99,7 @@ def create_student(
             detail="Email уже зарегистрирован"
         )
     
-    # проверка уникальности student_id
+    # Проверка уникальности student_id
     db_student = crud.get_student_by_student_id(db, student_id=student.student_id)
     if db_student:
         raise HTTPException(
@@ -84,16 +107,34 @@ def create_student(
             detail="Student ID уже существует"
         )
     
-    return crud.create_student(db=db, student=student)
+    created_student = crud.create_student(db=db, student=student)
+    
+    # Преобразуем в StudentResponse
+    return schemas.StudentResponse(
+        id=created_student.id,
+        student_id=created_student.student_id,
+        first_name=created_student.first_name,
+        last_name=created_student.last_name,
+        email=created_student.email,
+        phone=created_student.phone,
+        date_of_birth=created_student.date_of_birth,
+        gender=created_student.gender,
+        faculty=created_student.faculty,
+        group=created_student.group,
+        enrollment_year=created_student.enrollment_year,
+        created_at=created_student.created_at,
+        average_grade=None,
+        total_grades=0
+    )
 
-# эндпоинт 3: получить студента по ID
+# ✅ Эндпоинт 3: Получить студента по ID
 @router.get("/{student_id}", response_model=schemas.StudentWithGrades)
 def read_student(
     student_id: int,
     db: Session = Depends(get_db)
 ):
     """
-    получить информацию о студенте по его id вместе с оценками
+    Получить информацию о студенте по его ID вместе с оценками.
     """
     db_student = crud.get_student(db, student_id=student_id)
     if db_student is None:
@@ -102,15 +143,43 @@ def read_student(
             detail="Студент не найден"
         )
     
-    # добавление статистеки
+    # Добавляем статистику
     stats = crud.get_student_stats(db, student_id)
-    if stats:
-        db_student.average_grade = stats["average_grade"]
-        db_student.total_grades = stats["total_grades"]
     
-    return db_student
+    # Преобразуем оценки в Pydantic модели
+    grade_responses = []
+    for grade in db_student.grades:
+        grade_response = schemas.GradeResponse(
+            id=grade.id,
+            subject=grade.subject,
+            grade=grade.grade,
+            teacher=grade.teacher,
+            semester=grade.semester,
+            student_id=grade.student_id,
+            date=grade.date
+        )
+        grade_responses.append(grade_response)
+    
+    # Создаем StudentWithGrades
+    return schemas.StudentWithGrades(
+        id=db_student.id,
+        student_id=db_student.student_id,
+        first_name=db_student.first_name,
+        last_name=db_student.last_name,
+        email=db_student.email,
+        phone=db_student.phone,
+        date_of_birth=db_student.date_of_birth,
+        gender=db_student.gender,
+        faculty=db_student.faculty,
+        group=db_student.group,
+        enrollment_year=db_student.enrollment_year,
+        created_at=db_student.created_at,
+        average_grade=stats["average_grade"] if stats else None,
+        total_grades=stats["total_grades"] if stats else 0,
+        grades=grade_responses
+    )
 
-# зндпинт 4: Обновить информацию о студенте
+# ✅ Эндпоинт 4: Обновить информацию о студенте
 @router.put("/{student_id}", response_model=schemas.StudentResponse)
 def update_student(
     student_id: int,
@@ -136,9 +205,34 @@ def update_student(
                 detail="Email уже используется другим студентом"
             )
     
-    return crud.update_student(db=db, student_id=student_id, student_update=student_update)
+    updated_student = crud.update_student(db=db, student_id=student_id, student_update=student_update)
+    
+    if updated_student:
+        avg_grade = crud.calculate_student_average(db, updated_student.id)
+        
+        return schemas.StudentResponse(
+            id=updated_student.id,
+            student_id=updated_student.student_id,
+            first_name=updated_student.first_name,
+            last_name=updated_student.last_name,
+            email=updated_student.email,
+            phone=updated_student.phone,
+            date_of_birth=updated_student.date_of_birth,
+            gender=updated_student.gender,
+            faculty=updated_student.faculty,
+            group=updated_student.group,
+            enrollment_year=updated_student.enrollment_year,
+            created_at=updated_student.created_at,
+            average_grade=avg_grade,
+            total_grades=len(updated_student.grades)
+        )
+    
+    raise HTTPException(
+        status_code=404,
+        detail="Студент не найден"
+    )
 
-#Эндпоинт 5: Удалить студента
+# ✅ Эндпоинт 5: Удалить студента
 @router.delete("/{student_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_student(
     student_id: int,
@@ -157,7 +251,7 @@ def delete_student(
     crud.delete_student(db=db, student_id=student_id)
     return None
 
-#Эндпоинт 6: Поиск студентов
+# ✅ Эндпоинт 6: Поиск студентов
 @router.get("/search/", response_model=List[schemas.StudentResponse])
 def search_students(
     query: str = Query(..., min_length=2, description="Строка для поиска"),
@@ -168,14 +262,32 @@ def search_students(
     """
     students = crud.search_students(db, query=query)
     
-    # Добавляем средний балл
+    # Преобразуем студентов в Pydantic модели
+    student_responses = []
     for student in students:
         avg_grade = crud.calculate_student_average(db, student.id)
-        student.average_grade = avg_grade
+        
+        student_response = schemas.StudentResponse(
+            id=student.id,
+            student_id=student.student_id,
+            first_name=student.first_name,
+            last_name=student.last_name,
+            email=student.email,
+            phone=student.phone,
+            date_of_birth=student.date_of_birth,
+            gender=student.gender,
+            faculty=student.faculty,
+            group=student.group,
+            enrollment_year=student.enrollment_year,
+            created_at=student.created_at,
+            average_grade=avg_grade,
+            total_grades=len(student.grades)
+        )
+        student_responses.append(student_response)
     
-    return students
+    return student_responses
 
-#  Эндпоинт 7: Статистика по студенту
+# ✅ Эндпоинт 7: Статистика по студенту
 @router.get("/{student_id}/stats")
 def get_student_statistics(
     student_id: int,
@@ -204,7 +316,7 @@ def get_student_statistics(
         **stats
     }
 
-#  допю эндпоинт статистика по факультету
+# ✅ Дополнительный эндпоинт: Статистика по факультету
 @router.get("/faculty/{faculty}/stats")
 def get_faculty_statistics(
     faculty: str,
