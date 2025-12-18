@@ -7,6 +7,7 @@ from enum import Enum
 class GenderEnum(str, Enum):
     male = "male"
     female = "female"
+    #helicopter = "any"
 
 # Базовые схемы
 class StudentBase(BaseModel):

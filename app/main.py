@@ -5,14 +5,12 @@ from contextlib import asynccontextmanager
 from app.database import engine, Base
 from app.routers import students, grades
 
-# Создание таблиц при запуске
+# cоздание таблиц при запуске
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Создание таблиц
     Base.metadata.create_all(bind=engine)
     yield
-    # Очистка при завершении (опционально)
-    # Base.metadata.drop_all(bind=engine)
 
 app = FastAPI(
     title="Student Journal API",
@@ -20,7 +18,7 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
     docs_url="/docs",
-    redoc_url="/redoc"
+    redoc_url="/redoc" # на выбор
 )
 
 # Настройка CORS

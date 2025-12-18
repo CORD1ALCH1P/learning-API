@@ -6,7 +6,7 @@ from app.database import get_db
 
 router = APIRouter()
 
-# ✅ Эндпоинт 1: Получить список студентов с пагинацией и фильтрацией
+# эндпоинт 1 получить список студентов с пагинацией и фильтрацией
 @router.get("/", response_model=schemas.PaginatedResponse)
 def read_students(
     db: Session = Depends(get_db),
@@ -19,9 +19,9 @@ def read_students(
     sort_order: Optional[str] = Query("asc", description="Порядок сортировки (asc/desc)")
 ):
     """
-    Получить список студентов с возможностью фильтрации, сортировки и пагинации.
+    получить список студентов с возможностью фильтрации сортировки + пагинации
     """
-    # Получаем студентов
+    # получаем студентов
     students = crud.get_students(
         db, skip=skip, limit=limit,
         faculty=faculty, group=group, enrollment_year=enrollment_year
@@ -34,13 +34,13 @@ def read_students(
             reverse=(sort_order.lower() == "desc")
         )
     
-    # Добавляем средний балл каждому студенту
+    # добавляем средний балл каждому студенту
     for student in students:
         avg_grade = crud.calculate_student_average(db, student.id)
         student.average_grade = avg_grade
         student.total_grades = len(student.grades)
     
-    # Общее количество студентов (для пагинации)
+    # общее количество студентов (для пагинации)
     total_query = db.query(models.Student)
     if faculty:
         total_query = total_query.filter(models.Student.faculty.ilike(f"%{faculty}%"))
@@ -59,16 +59,16 @@ def read_students(
         "pages": (total + limit - 1) // limit
     }
 
-# ✅ Эндпоинт 2: Создать нового студента
+# эндпоинт 2: создать нового студента
 @router.post("/", response_model=schemas.StudentResponse, status_code=status.HTTP_201_CREATED)
 def create_student(
     student: schemas.StudentCreate,
     db: Session = Depends(get_db)
 ):
     """
-    Создать нового студента.
+    создать нового студента
     """
-    # Проверка уникальности email
+    # проверка уникальности email
     db_student = crud.get_student_by_email(db, email=student.email)
     if db_student:
         raise HTTPException(
@@ -76,7 +76,7 @@ def create_student(
             detail="Email уже зарегистрирован"
         )
     
-    # Проверка уникальности student_id
+    # проверка уникальности student_id
     db_student = crud.get_student_by_student_id(db, student_id=student.student_id)
     if db_student:
         raise HTTPException(
@@ -86,14 +86,14 @@ def create_student(
     
     return crud.create_student(db=db, student=student)
 
-# ✅ Эндпоинт 3: Получить студента по ID
+# эндпоинт 3: получить студента по ID
 @router.get("/{student_id}", response_model=schemas.StudentWithGrades)
 def read_student(
     student_id: int,
     db: Session = Depends(get_db)
 ):
     """
-    Получить информацию о студенте по его ID вместе с оценками.
+    получить информацию о студенте по его id вместе с оценками
     """
     db_student = crud.get_student(db, student_id=student_id)
     if db_student is None:
@@ -102,7 +102,7 @@ def read_student(
             detail="Студент не найден"
         )
     
-    # Добавляем статистику
+    # добавление статистеки
     stats = crud.get_student_stats(db, student_id)
     if stats:
         db_student.average_grade = stats["average_grade"]
@@ -110,7 +110,7 @@ def read_student(
     
     return db_student
 
-# ✅ Эндпоинт 4: Обновить информацию о студенте
+# зндпинт 4: Обновить информацию о студенте
 @router.put("/{student_id}", response_model=schemas.StudentResponse)
 def update_student(
     student_id: int,
@@ -138,7 +138,7 @@ def update_student(
     
     return crud.update_student(db=db, student_id=student_id, student_update=student_update)
 
-# ✅ Эндпоинт 5: Удалить студента
+#Эндпоинт 5: Удалить студента
 @router.delete("/{student_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_student(
     student_id: int,
@@ -157,7 +157,7 @@ def delete_student(
     crud.delete_student(db=db, student_id=student_id)
     return None
 
-# ✅ Эндпоинт 6: Поиск студентов
+#Эндпоинт 6: Поиск студентов
 @router.get("/search/", response_model=List[schemas.StudentResponse])
 def search_students(
     query: str = Query(..., min_length=2, description="Строка для поиска"),
@@ -175,7 +175,7 @@ def search_students(
     
     return students
 
-# ✅ Эндпоинт 7: Статистика по студенту
+#  Эндпоинт 7: Статистика по студенту
 @router.get("/{student_id}/stats")
 def get_student_statistics(
     student_id: int,
@@ -204,7 +204,7 @@ def get_student_statistics(
         **stats
     }
 
-# ✅ Дополнительный эндпоинт: Статистика по факультету
+#  допю эндпоинт статистика по факультету
 @router.get("/faculty/{faculty}/stats")
 def get_faculty_statistics(
     faculty: str,

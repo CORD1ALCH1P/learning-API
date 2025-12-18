@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 
-# SQLite база данных
+# SQLite БД
 SQLALCHEMY_DATABASE_URL = "sqlite:///./student_journal.db"
 
 engine = create_engine(
@@ -14,7 +14,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
 
-# Dependency для получения сессии БД
+# depenndency для получения сессии БД
 def get_db():
     db = SessionLocal()
     try:

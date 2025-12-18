@@ -7,7 +7,7 @@ from app.database import get_db
 
 router = APIRouter()
 
-# ✅ Эндпоинт 8: Получить оценки студента
+# Эндпоинт 8: Получить оценки студента
 @router.get("/student/{student_id}", response_model=List[schemas.GradeResponse])
 def read_student_grades(
     student_id: int,
@@ -21,7 +21,7 @@ def read_student_grades(
     grades = crud.get_student_grades(db, student_id=student_id, subject=subject, semester=semester)
     return grades
 
-# ✅ Эндпоинт 9: Добавить оценку
+# Эндпоинт 9: Добавить оценку
 @router.post("/", response_model=schemas.GradeResponse, status_code=status.HTTP_201_CREATED)
 def create_grade(
     grade: schemas.GradeCreate,
@@ -40,7 +40,7 @@ def create_grade(
     
     return crud.create_grade(db=db, grade=grade)
 
-# ✅ Эндпоинт 10: Обновить оценку
+# Эндпоинт 10: Обновить оценку
 @router.put("/{grade_id}", response_model=schemas.GradeResponse)
 def update_grade(
     grade_id: int,
@@ -58,7 +58,7 @@ def update_grade(
         )
     return db_grade
 
-# ✅ Эндпоинт 11: Удалить оценку
+# Эндпоинт 11: Удалить оценку
 @router.delete("/{grade_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_grade(
     grade_id: int,
@@ -75,7 +75,7 @@ def delete_grade(
         )
     return None
 
-# ✅ Эндпоинт 12: Средний балл студента
+# Эндпоинт 12: Средний балл студента
 @router.get("/student/{student_id}/average")
 def get_student_average(
     student_id: int,
@@ -116,7 +116,7 @@ def get_student_average(
         "average_grade": average
     }
 
-# ✅ Эндпоинт 13: Топ студентов по среднему баллу
+# Эндпоинт 13: Топ студентов по среднему баллу
 @router.get("/top/{faculty}")
 def get_top_students(
     faculty: str,
@@ -167,7 +167,7 @@ def get_top_students(
         "top_students": result
     }
 
-# ✅ Эндпоинт 14: Успеваемость по предметам
+# Эндпоинт 14: Успеваемость по предметам
 @router.get("/subjects/performance")
 def get_subjects_performance(
     semester: Optional[int] = Query(None, ge=1, le=8),

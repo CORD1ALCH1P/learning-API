@@ -24,7 +24,7 @@ class Student(Base):
     enrollment_year = Column(Integer, nullable=False)
     created_at = Column(Date, default=func.current_date())
     
-    # Связь с оценками
+    # определение связи с оценками
     grades = relationship("Grade", back_populates="student", cascade="all, delete-orphan")
 
 class Grade(Base):
